@@ -1,0 +1,2 @@
+# one per line: DOMAIN-SUFFIX,domain / DOMAIN,host / DOMAIN-KEYWORD,kw / IP-CIDR,cidr
+DOMAIN-SUFFIX,steamcontent.com
