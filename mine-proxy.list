@@ -1,2 +1,5 @@
 # one per line: DOMAIN-SUFFIX,domain / DOMAIN,host / DOMAIN-KEYWORD,kw / IP-CIDR,cidr
 DOMAIN-SUFFIX,danielspringer.at
+DOMAIN-SUFFIX,linkedin.com
+DOMAIN-SUFFIX,linkedin.cn
+DOMAIN-SUFFIX,licdn.com
