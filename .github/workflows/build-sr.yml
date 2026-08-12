@@ -1,0 +1,27 @@
+name: build-sr
+on:
+  push:
+    paths: [mine-proxy.list, mine-direct.list, scripts/build_sr_conf.py, .github/workflows/build-sr.yml]
+  schedule:
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: build-sr
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python3 scripts/build_sr_conf.py
+      - name: commit if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add shadowrocket.conf
+          git diff --staged --quiet || { git commit -m "regen shadowrocket.conf"; git push; }
