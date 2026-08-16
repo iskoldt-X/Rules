@@ -1,0 +1,109 @@
+# =============================================================================
+# GFWList 黑名单 Clash/mihomo 规则模块 — 引擎中立, 节点无关, 无任何密钥。
+# 可直接放公开仓库 iskoldt-X/Rules。规则单一真源: mine-* + DustinWin gfw.mrs。
+#
+# 用法(两种):
+#  A) 作为"覆写/全局扩展配置"叠加在你的节点订阅上
+#     (Clash Verge Rev=全局扩展配置; mihomo-party/FlClash/Stash=Override)。
+#     分组用 include-all 自动收编订阅里的所有节点, 不写死任何节点。
+#  B) 作为整份 profile: 在末尾另加一个 proxy-providers 段指向你的私有节点订阅即可。
+#
+# DNS 用 system(跟随设备本地 DNS → 俄罗斯手机自动走俄本地解析, 无需写死国别),
+# 被代理域名走 fake-ip 由远端解析, 不泄漏; sniffer 从 SNI 还原域名, 治 own-DNS 盲区。
+# cn-router 因是 LAN 网关另有 UCI 注入的 DNS/tun, 用它自己那份(本模块面向客户端/手机)。
+# =============================================================================
+
+mode: rule
+ipv6: false
+unified-delay: true
+tcp-concurrent: true
+global-client-fingerprint: chrome
+profile:
+  store-selected: true
+  store-fake-ip: true
+
+dns:
+  enable: true
+  ipv6: false
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  respect-rules: false
+  nameserver: ["system"]            # 跟随设备本地 DNS(自适应地区); 直连域名本地解析
+  proxy-server-nameserver: ["system"]
+  fake-ip-filter:                   # 命中者返回真实 IP(不进 fakeip): 本地/连通性探测/国内域名不误伤
+    - "*.lan"
+    - "+.local"
+    - "+.home.arpa"
+    - "+.msftconnecttest.com"
+    - "+.msftncsi.com"
+    - "captive.apple.com"
+    - "time.*.com"
+    - "+.pool.ntp.org"
+    - "geosite:cn"
+    - "geosite:private"
+    - "geosite:connectivity-check"
+
+sniffer:                            # own-DNS/裸 IP 客户端的结构性正解: 从 TLS SNI 还原域名命中规则
+  enable: true
+  force-dns-mapping: true
+  parse-pure-ip: true
+  override-destination: false       # 已有 fakeip→域名映射, 不强制覆盖(cn 实测: 强制会误判)
+  sniff:
+    TLS: { ports: [443, 8443] }
+    HTTP: { ports: [80, 8080-8880] }
+    QUIC: { ports: [443] }
+  skip-domain:
+    - "+.push.apple.com"
+    - "+.oray.com"
+    - "+.sunlogin.net"
+
+proxy-groups:
+  - name: "PROXY"                   # 手选入口: 默认 AUTO
+    type: select
+    include-all: true
+    proxies: ["AUTO", "URLTEST"]
+  - name: "AUTO"                    # 故障转移(粘主, 主挂切备, 恢复切回; 行为可预测)
+    type: fallback
+    include-all: true
+    url: "https://www.gstatic.com/generate_204"
+    interval: 60
+    lazy: true
+  - name: "URLTEST"                 # 最低延迟优选(变体入口; RU 下会自动选 FRA 16MB/s 等最快)
+    type: url-test
+    include-all: true
+    url: "https://www.gstatic.com/generate_204"
+    interval: 300
+    tolerance: 50
+
+rule-providers:                     # type:http 直连 jsdelivr(手机/客户端够用; cn 路由器用 type:file+cron)
+  mine-direct:
+    type: http
+    behavior: classical
+    format: text
+    url: "https://testingcf.jsdelivr.net/gh/iskoldt-X/Rules@main/mine-direct.list"
+    path: ./ruleset/mine-direct.list
+    interval: 3600
+  mine-proxy:
+    type: http
+    behavior: classical
+    format: text
+    url: "https://testingcf.jsdelivr.net/gh/iskoldt-X/Rules@main/mine-proxy.list"
+    path: ./ruleset/mine-proxy.list
+    interval: 3600
+  gfw:
+    type: http
+    behavior: domain
+    format: mrs
+    url: "https://testingcf.jsdelivr.net/gh/DustinWin/ruleset_geodata@mihomo-ruleset/gfw.mrs"
+    path: ./ruleset/gfw.mrs
+    interval: 86400
+
+rules:
+  - GEOSITE,private,DIRECT
+  - GEOIP,private,DIRECT,no-resolve
+  - RULE-SET,mine-direct,DIRECT     # 自维护直连 overlay
+  - RULE-SET,mine-proxy,PROXY       # 自维护代理 overlay(排在 GEOIP 护栏前, 治 LinkedIn 被中国化)
+  - GEOSITE,cn,DIRECT               # 国内域名层直连(不产生 fakeip、不走代理)
+  - GEOIP,CN,DIRECT                 # 国内 IP 兜底直连
+  - RULE-SET,gfw,PROXY              # 被墙大表 → 代理
+  - MATCH,DIRECT                    # 其余全速直连(GFWList 黑名单尾巴)
