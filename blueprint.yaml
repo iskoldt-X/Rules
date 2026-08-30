@@ -1,0 +1,38 @@
+# SSOT for CN GFWList rules. Edit HERE; scripts/build.py compiles both engines.
+# Upstream = MetaCubeX meta branch, tracked live (NOT pinned - freshness by design;
+# floors + canary route-tests + visible per-category diff guard a bad upstream day).
+# Blacklist model: default DIRECT; only listed PROXY groups go through the node.
+
+upstream: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo
+# CN-reachable mirror for mihomo's geo database (fake-ip-filter's geosite:cn).
+geox_mirror: https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release
+
+# Ordered groups, emitted between the inlined `private` guardrail (top) and
+# MATCH/FINAL,DIRECT (bottom). First-match-wins, so order matters.
+groups:
+  - name: mine-direct
+    source: {kind: local, file: mine-direct.list}
+    policy: DIRECT
+  - name: mine-proxy                 # manual force-proxy; ABOVE everything below (LinkedIn-China fix)
+    source: {kind: local, file: mine-proxy.list}
+    policy: PROXY
+  - name: telegram
+    source: {kind: domain, path: geosite/telegram}
+    policy: PROXY
+  - name: telegram-ip                # MTProto bare datacenter IPs (v4+v6), no-resolve
+    source: {kind: ipcidr, path: geoip/telegram}
+    policy: PROXY
+  - name: ai                         # OpenAI/Claude/Gemini/... (google-gemini is a subset, folded in)
+    source: {kind: domain, path: geosite/category-ai-!cn}
+    policy: PROXY
+    subtract_cn: true                # drop CN-domestic mis-tags (kimi/moonshot/minimax/qoder)
+  - name: gfw                        # main blocked list; its .cn entries (bloomberg.cn) are intentionally blocked -> keep
+    source: {kind: domain, path: geosite/gfw}
+    policy: PROXY
+
+# Build fails (no commit) if any category falls under its floor.
+floors:
+  gfw: 4000
+  ai: 100
+  telegram: 15
+  telegram-ip: 8
