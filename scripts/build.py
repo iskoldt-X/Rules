@@ -163,7 +163,7 @@ for name, pol, rules, is_ip in groups:
     sr.append(f"# ---- {name} -> {pol} ----")
     for t, v in rules:
         sr.append(sr_line(t, v, pol, is_ip))
-sr.append("# ---- blacklist default ----")
+sr.append("# ---- default: anything not listed above stays direct ----")
 sr.append("FINAL,DIRECT")
 sr.append("")
 open(os.path.join(ROOT, "shadowrocket.conf"), "w", encoding="utf-8").write("\n".join(sr))
@@ -250,7 +250,7 @@ for name, pol, rules, is_ip in groups:
     mi.append(f"  # ---- {name} -> {pol} ----")
     for t, v in rules:
         mi.append(mi_line(t, v, pol, is_ip))
-mi.append("  # ---- blacklist default ----")
+mi.append("  # ---- default: anything not listed above stays direct ----")
 mi.append("  - MATCH,DIRECT")
 mi.append("")
 open(os.path.join(ROOT, "clash-rules.yaml"), "w", encoding="utf-8").write("\n".join(mi))

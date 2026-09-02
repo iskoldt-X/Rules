@@ -4789,5 +4789,5 @@ rules:
   - DOMAIN-SUFFIX,s3.dualstack.us-west-2.amazonaws.com,PROXY
   - DOMAIN-SUFFIX,mjlsh.usc.cuhk.edu.hk,PROXY
   - DOMAIN-SUFFIX,library.usc.cuhk.edu.hk,PROXY
-  # ---- blacklist default ----
+  # ---- default: anything not listed above stays direct ----
   - MATCH,DIRECT
