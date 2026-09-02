@@ -44,7 +44,7 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add shadowrocket.conf clash-rules.yaml
+          git add shadowrocket.conf clash-rules.yaml proxy-routes.list
           if ! git diff --staged --quiet; then
             git commit -m "regen: $(sed -n '2s/^# //p' shadowrocket.conf)"
             git push
