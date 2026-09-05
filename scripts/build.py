@@ -179,7 +179,6 @@ mode: rule
 ipv6: false
 unified-delay: true
 tcp-concurrent: true
-global-client-fingerprint: chrome
 profile:
   store-selected: true
   store-fake-ip: true
