@@ -22,9 +22,10 @@ mine-direct.list        your own additions -> DIRECT
         +--> shadowrocket.conf   full config    for Shadowrocket / Surge (iOS)
         +--> clash-rules.yaml    full override  for mihomo-based client apps
         +--> proxy-routes.list   bare list      for a router that already has its own config
+        +--> v2rayn-rules.json   rule set       for v2rayN (Windows)
 ```
 
-All three come out of the same compile, so the destination set is identical across them. Upstream is
+All four come out of the same compile, so the destination set is identical across them. Upstream is
 [MetaCubeX/meta-rules-dat](https://github.com/MetaCubeX/meta-rules-dat) (`meta` branch), tracked
 rather than pinned; the build guards against a truncated or empty upstream with per-category
 minimum counts, a set of routing canaries, and `mihomo -t`.
@@ -53,6 +54,23 @@ Add your node subscription as the profile, then apply this file as the override 
 config. The proxy groups use `include-all`, so they adopt whatever nodes your subscription provides.
 Rules are emitted as flat `rules:` lines rather than `type: inline`, which keeps them loadable on
 Stash and older cores.
+
+### v2rayN (Windows)
+
+```
+https://testingcf.jsdelivr.net/gh/iskoldt-X/Rules@main/v2rayn-rules.json
+```
+
+v2rayN takes a v2ray (base64) subscription directly. For the rules: *Routing Setting* -> add a
+routing profile -> put this URL in its *URL (optional)* field -> *Import Rules From Subscription
+URL*, and answer **No** (= replace) when asked whether to append. Keep the *Domain strategy* at
+`AsIs`, so IP entries only match connections that already carry an IP (the same as `no-resolve`
+elsewhere). Works with the Xray or sing-box core; v2rayN converts the `domain:` / `full:` entries
+for sing-box itself.
+
+v2rayN stores the imported rules in its own database and does not refresh them by itself: run
+*Import Rules From Subscription URL* again now and then to pick up upstream changes. There is a
+single proxy outbound, so every PROXY group goes through the node you have selected.
 
 ### A router that already has its own config (OpenClash / mihomo on OpenWrt)
 

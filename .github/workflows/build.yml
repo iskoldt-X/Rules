@@ -27,7 +27,7 @@ jobs:
       - run: pip install --quiet pyyaml
       - name: compile (fail-closed + floors inside build.py)
         run: python3 scripts/build.py
-      - name: route canaries (semantic first-match test, both artifacts)
+      - name: route canaries (semantic first-match test, all client artifacts)
         run: python3 scripts/route_test.py
       - name: mihomo -t (syntax/load check on a harness with a dummy node)
         run: |
@@ -44,7 +44,7 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add shadowrocket.conf clash-rules.yaml proxy-routes.list
+          git add shadowrocket.conf clash-rules.yaml proxy-routes.list v2rayn-rules.json
           if ! git diff --staged --quiet; then
             git commit -m "regen: $(sed -n '2s/^# //p' shadowrocket.conf)"
             git push

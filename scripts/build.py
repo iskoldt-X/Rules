@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""SSOT compiler: blueprint.yaml -> three artifacts, one compile, one source of truth.
+"""SSOT compiler: blueprint.yaml -> four artifacts, one compile, one source of truth.
 
   shadowrocket.conf  full config for Shadowrocket / Surge (iOS)
   clash-rules.yaml   full override config for mihomo-based client apps
   proxy-routes.list  bare rule list for a router that already owns its own config
                      (mihomo rule-provider: behavior classical, format text)
+  v2rayn-rules.json  routing rule set for v2rayN (Windows), Xray or sing-box core
 
 Runs in GitHub Actions, on an unrestricted network: fetches MetaCubeX .list files, converts them to
 Surge / mihomo syntax, and INLINES everything so the shipped configs fetch nothing at runtime.
@@ -279,8 +280,44 @@ if rp_n < 1000:
     die(f"proxy-routes.list only got {rp_n} entries -- upstream groups look empty")
 open(os.path.join(ROOT, "proxy-routes.list"), "w", encoding="utf-8").write("\n".join(rp))
 
+# ---------- emit v2rayn-rules.json (v2rayN routing rule set: JSON list of RulesItem) ----------
+# Imported per routing profile in v2rayN ("import rules from URL"); same order, same entries.
+# Domain and IP entries go in separate items: v2rayN/Xray AND the fields inside one item.
+# IP items match only connections that already carry an IP under the default domainStrategy
+# AsIs, which is the no-resolve behaviour of the other two artifacts.
+V2_TAG = {"PROXY": "proxy", "DIRECT": "direct", "REJECT": "block"}
+V2_DOM = {"DOMAIN-SUFFIX": "domain:", "DOMAIN": "full:", "DOMAIN-KEYWORD": "keyword:"}
+
+def v2_items(name, pol, rules):
+    if pol not in V2_TAG:
+        die(f"v2rayn: {name}: no outbound for policy {pol!r}")
+    dom, ip = [], []
+    for t, v in rules:
+        if t in V2_DOM:
+            dom.append(V2_DOM[t] + v)
+        elif t in ("IP-CIDR", "IP-CIDR6"):
+            ip.append(v)
+        else:
+            die(f"v2rayn: {name}: unsupported rule type {t!r}")
+    out = []
+    if dom: out.append({"remarks": name, "outboundTag": V2_TAG[pol], "domain": dom, "enabled": True})
+    if ip:  out.append({"remarks": name + " (ip)", "outboundTag": V2_TAG[pol], "ip": ip, "enabled": True})
+    return out
+
+v2 = v2_items("private", "DIRECT", priv_ip + priv_dom)
+for name, pol, rules, is_ip in groups:
+    v2 += v2_items(name, pol, rules)
+v2.append({"remarks": "default: anything not listed above stays direct",
+           "outboundTag": "direct", "port": "0-65535", "enabled": True})
+v2_n = sum(len(i.get("domain", [])) + len(i.get("ip", [])) for i in v2)
+if v2_n < 1000:
+    die(f"v2rayn-rules.json only got {v2_n} entries -- upstream groups look empty")
+open(os.path.join(ROOT, "v2rayn-rules.json"), "w", encoding="utf-8").write(
+    json.dumps(v2, indent=1, ensure_ascii=True) + "\n")
+
 print("OK:", " ".join(f"{k}={v}" for k, v in sorted(counts.items())))
 print("upstream", sha, "->",
       "shadowrocket.conf", f"({len(sr)} lines)",
       "clash-rules.yaml", f"({len(mi)} lines)",
-      "proxy-routes.list", f"({rp_n} entries)")
+      "proxy-routes.list", f"({rp_n} entries)",
+      "v2rayn-rules.json", f"({v2_n} entries)")

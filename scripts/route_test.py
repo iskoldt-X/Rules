@@ -3,9 +3,9 @@
 
 Neither engine has a route-query CLI, so we interpret the emitted rule lists directly
 (both grammars are ordered first-match lists) and assert a canary corpus routes as
-expected for BOTH shadowrocket.conf and clash-rules.yaml. Exit non-zero on any miss.
+expected for shadowrocket.conf, clash-rules.yaml and v2rayn-rules.json. Exit non-zero on any miss.
 """
-import os, sys, ipaddress
+import os, sys, json, ipaddress
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -27,8 +27,27 @@ CORPUS = [
     ("140.82.112.3",        "ip",     "DIRECT"),  # foreign bare IP, no IP rule -> default DIRECT
 ]
 
+V2_TYPE = {"domain:": "DOMAIN-SUFFIX", "full:": "DOMAIN", "keyword:": "DOMAIN-KEYWORD"}
+V2_POL = {"proxy": "PROXY", "direct": "DIRECT", "block": "REJECT"}
+
+def parse_v2rayn(path):
+    """v2rayn-rules.json -> the same tuples. IP items are no-resolve under domainStrategy AsIs."""
+    rules = []
+    for item in json.load(open(path, encoding="utf-8")):
+        pol = V2_POL[item["outboundTag"]]
+        if item.get("port") == "0-65535" and not item.get("domain") and not item.get("ip"):
+            rules.append(("MATCH", None, pol, False)); continue
+        for d in item.get("domain", []):
+            pre = next(p for p in V2_TYPE if d.startswith(p))
+            rules.append((V2_TYPE[pre], d[len(pre):], pol, False))
+        for c in item.get("ip", []):
+            rules.append(("IP-CIDR6" if ":" in c else "IP-CIDR", c, pol, True))
+    return rules
+
 def parse_rules(path):
-    """Return ordered [(TYPE, value, policy, no_resolve)] from either artifact."""
+    """Return ordered [(TYPE, value, policy, no_resolve)] from any client artifact."""
+    if path.endswith(".json"):
+        return parse_v2rayn(path)
     rules, in_block = [], False
     for raw in open(path, encoding="utf-8"):
         line = raw.rstrip("\n")
@@ -112,7 +131,7 @@ def check_list_consistency():
 
 def main():
     fails = 0
-    for art in ("shadowrocket.conf", "clash-rules.yaml"):
+    for art in ("shadowrocket.conf", "clash-rules.yaml", "v2rayn-rules.json"):
         rules = parse_rules(os.path.join(ROOT, art))
         print(f"== {art} ({len(rules)} rules) ==")
         for target, kind, want in CORPUS:
@@ -123,7 +142,7 @@ def main():
     fails += check_list_consistency()
     if fails:
         print(f"\n{fails} FAILURES", file=sys.stderr); sys.exit(1)
-    print("\nAll canaries pass on both artifacts; proxy-routes.list is consistent.")
+    print("\nAll canaries pass on all three artifacts; proxy-routes.list is consistent.")
 
 if __name__ == "__main__":
     main()
